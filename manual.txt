@@ -1,0 +1,24 @@
+1. Создать backup в папке сайта с дефолтными параметрами (папка /bitrix/backup на сервере закрыта для внешнего доступа!)
+2. Скачать backup через ftp на localhost в корневую папку сайта
+3. Сохранить в папке сайта файлы restore.php и bitrix_server_test.php
+4. Выполнить bitrix_server_test.php
+5. Настроить php.ini согласно требованиям bitrix_server_test.php:
+- должны быть подключены модули mysqli и mbstring (sudo apt-get install php-mbstring - если не установлен)
+	extension=mysqli //(default is commented)
+	extension=mbstring //(default is commented)
+	short_open_tag=On
+	display_errors = On
+дополнительно:
+	mbstring.internal_encoding=UTF-8
+	mbstring.func_overload = 2
+6. Создать в ОС пользователя bitrix (lowercase!) и группу bitrix
+7. Дать права записи пользователю и группе bitrix на папку сайта и все файлы внутри папки
+8. В базе mysql создать пользователя bitrix@localhost с паролем:
+	alter user 'bitrix'@'localhost' identified by '{password}';
+9. Перезагрузить mysql: sudo service mysql restart
+10. Выполнить restore.php для распаковки архива
+11. Следовать указаниям в ходе выполнения
+12. Указать пользователя и пароль БД, назначенные в п.8, назначить имя БД
+13. Сайт готов. Назначить права записи папкам и файлам сайта, которые должны быть доступны для изменения
+
+  

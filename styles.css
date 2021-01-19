@@ -1,0 +1,44 @@
+#ft-import-products-list {
+  display: none;
+}
+#ft-import-products-list input, #ft-import-deactivate-list input{
+  cursor: pointer;
+}
+#ft-import-products-list *[disabled] {
+  cursor: default;
+}
+#ft-import-products-list input[disabled] {
+  opacity: 0;
+}
+.ft-import-product-exists {
+  color: green;
+}
+button, input[checkbox], label {
+  cursor: pointer;
+}
+button {
+  padding: 0 5px;
+}
+li {
+  list-style-type: none;
+}
+.bold {
+	font-weight: bold;
+	font-size: 1.1em;
+}
+label span {
+	font-weight: normal;
+}
+li::before {
+  content: "" !important;
+}
+
+li:before {
+  content: "" !important;
+}
+.ft-product-view {
+  height: 1.5em;
+  width: auto;
+  position: relative;
+  top: -2px;
+}
