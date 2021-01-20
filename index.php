@@ -78,14 +78,17 @@ endif;
   foreach ($new_sections as $value) {
     $bs->Update($value['id'], ["IBLOCK_SECTION_ID"=>$parent_change[(int)$value['xmlparentcategory']]]);
   }
-?>
+
+// -------------------------------- конец обработки списка разделов товаров (папок) ----------------------
+?> 
 
 <ul id="ft-sectionsinfo">
   <li class="bold">Всего разделов в каталоге Flytechnology: <?=count($categories)?></li>
   <li class="bold">Импортировано разделов из каталога Flytechnology: <?=count($new_sections)?></li>
 </ul>
 
-<?
+<? // --------------------------- обработка списка товаров -------------------------
+
 $existing_items_request = $b_el->GetList( // создаем список товаров, уже существующих в базе
  [(int)"XML_ID"=>"ASC"],
  ["IBLOCK_ID"=>IBLOCK, "CODE"=>ITEM_PREFIX."%"],
@@ -94,10 +97,10 @@ $existing_items_request = $b_el->GetList( // создаем список тов�
  ["ID", "IBLOCK_ID", "XML_ID", "NAME", "IBLOCK_SECTION_ID", "ACTIVE"]
 );
 $existing_items_list = []; // товары, существующие в базе
-$deactivate_list = []; // товары, отсутствующие в xml для деактивации
+$navi_items_list = []; // все товары navi
 while ($el = $existing_items_request->GetNext()) {
   $existing_items_list [] = (int)$el['XML_ID'];
-  $deactivate_list[] = 
+  $navi_items_list[] = 
     [ 
       'xml_id' => (int)$el['XML_ID'],
       'name' => (string)$el['NAME'],
@@ -114,8 +117,20 @@ $items_xml_id = []; // для поиска товаров, не существу
 foreach($items_xml as $val) $items_xml_id[] = (int)$val->idproduct;
 $deactivate = array_diff($existing_items_list, $items_xml_id); // товары, отсутствующие в xml
 unset ($items_xml_id);
-// актуализируем массив деактивации:
-foreach($deactivate_list as &$val) if (array_search($val['xml_id'], $deactivate) !== false && strtoupper($val['active']) != 'N') $val['actual'] = true;
+
+// актуализируем массив активации/деактивации:
+$deactivate_count = 0;
+$activate_count = 0;
+foreach($navi_items_list as &$val) { // перебор всех товаров navi
+  if (array_search($val['xml_id'], $deactivate) !== false && strtoupper($val['active']) != 'N') {
+    $val['to_deactivate'] = true;
+    $deactivate_count ++;
+  }
+  if ($val['active'] == 'N') {
+    $val['to_activate'] = true;
+    $activate_count ++;
+  }
+}
 
 $items = []; // список товаров из каталога xml для вывода на экран
 $new_products = 0;
@@ -136,10 +151,14 @@ usort($items, 'compare_sort');
 unset($items_xml);
 
 ?>
-<?if (count($deactivate) > 0):?>
+
+
+<? // деактивация:
+print_r($activate);
+if ($deactivate_count > 0):?>
 	<hr>
   <ul id="ft-deactivate">
-    <li class="bold">Неактивных товаров (отсутствуют в каталоге flytechnology): <?=count($deactivate)?></li>
+    <li class="bold">Товары, отсутствующие в каталоге flytechnology: <?=$deactivate_count?></li>
     <li>
       <button id="ft-import-deactivate-view">Показать список</button>
       <button id="ft-import-deactivate-total">Выбрать все</button>
@@ -149,8 +168,8 @@ unset($items_xml);
 	  <li>Выбрано: <span id="deactivate-selection">0</span> товаров</li>
   </ul>
   <ul id="ft-import-deactivate-list" style="display: none">
-    <? foreach($deactivate_list as $val):?>
-		<?if ($val['actual']):?>
+    <? foreach($navi_items_list as $val):?>
+		<?if ($val['to_deactivate']):?>
 			<li>
 				<label>
 				<input type="checkbox" class="deactivate-item" data-id="<?=$val['id']?>">
@@ -165,7 +184,46 @@ unset($items_xml);
 	  <?endif;?>
     <?endforeach;?>
   </ul>
-<?endif;?>
+<?endif; // деактивация.?>
+
+<? // активация:
+
+function unactive_filter($val) {
+  if ($val['active'] == 'N') return true;
+  return false;
+};
+
+if ($activate_count > 0):?>
+	<hr>
+  <ul id="ft-activate">
+    <li class="bold">Товары, неактивные в каталоге NAVI: <?=$activate_count?></li>
+    <li>
+      <button id="ft-import-activate-view">Показать список</button>
+      <button id="ft-import-activate-total">Выбрать все</button>
+      <button id="ft-import-activate-clear">Отменить все</button>
+      <button id="ft-import-activate-selected" disabled="">Активировать выбранные</button>
+    </li>
+	  <li>Выбрано: <span id="activate-selection">0</span> товаров</li>
+  </ul>
+  <ul id="ft-import-activate-list" style="display: none">
+    <? foreach(array_filter($navi_items_list, 'unactive_filter') as $val):?>
+		<?if ($val['to_activate']):?>
+			<li>
+				<label>
+				<input type="checkbox" class="activate-item" data-id="<?=$val['id']?>">
+				<?=$val['name']?>
+					active: <?=$val['active']?>
+				<a href="/bitrix/admin/iblock_element_edit.php?IBLOCK_ID=<?=IBLOCK?>&type=aspro_next_catalog&lang=ru&ID=<?=$val['id']?>&find_section_section=<?=$val['parent']?>&WF=Y" target="blanc">
+					<img class="ft-product-view" src="view.png" title="Просмотр товара">
+				</a>
+				</label>
+			</li>
+
+	  <?endif;?>
+    <?endforeach;?>
+  </ul>
+<?endif; // активация.?>
+
 
 <hr>
 <ul id="ft-products-import">
@@ -285,7 +343,53 @@ document.querySelector('#ft-import-products').addEventListener('click', ()=>{
 
 </script>
 
-<?if (count($deactivate) > 0): // скрипт деактивации?>
+<?if ($activate_count > 0): // скрипт активации?>
+<script>
+
+  let activate = document.querySelectorAll('.activate-item');
+  let activateListVisible = false;
+
+  document.querySelector('#ft-import-activate-view').addEventListener('click', ()=>{
+    document.querySelector('#ft-import-activate-list').style.display='block';
+  });
+
+  document.querySelector('#ft-import-activate-view').addEventListener('click', (e)=>{
+  let el = document.querySelector('#ft-import-activate-list');
+  if (!activateListVisible) {
+    el.style.display = "block";
+    e.target.innerHTML = "Скрыть список";
+  } 
+  else {
+    el.style.display = "none";
+    e.target.innerHTML = "Показать список";
+  }
+  activateListVisible = !activateListVisible;
+})
+
+
+  const activateCheckedCalc = ()=> {
+    let len = document.querySelectorAll('.activate-item:checked').length;;
+    document.querySelector('#activate-selection').innerHTML = len;
+    let activateBtn = document.querySelector('#ft-import-activate-selected');
+    if (len) {activateBtn.removeAttribute('disabled')}
+    else activateBtn.setAttribute('disabled', "");
+  }
+
+  activate.forEach((i)=>i.addEventListener('change', activateCheckedCalc));
+
+  document.querySelector('#ft-import-activate-total').addEventListener('click', ()=>
+  {
+    activate.forEach((i)=> {if (i.getAttribute('disabled') === null) i.checked=true});
+    activateCheckedCalc();
+  })
+  document.querySelector('#ft-import-activate-clear').addEventListener('click', ()=>{
+    activate.forEach((i)=>i.checked=false);
+    activateCheckedCalc();
+  })
+</script>
+<?endif; // конец скрипта активации?>
+
+<?if ($deactivate_count > 0): // скрипт деактивации?>
 <script>
 
   let deactivate = document.querySelectorAll('.deactivate-item');
@@ -335,7 +439,6 @@ document.querySelector('#ft-import-products').addEventListener('click', ()=>{
 
     let selected = [];
     itemSelected.forEach((i)=>selected.push(i.dataset.id));
-    console.log(selected);
     let deactivateSection = document.querySelector('#ft-deactivate');
     deactivateSection.innerHTML = "<h2>Деактивация выбранных товаров...</h2>";
     deactivateSection.innerHTML += `<img src="loading.gif" alt="">`;
