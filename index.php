@@ -111,26 +111,24 @@ while ($el = $existing_items_request->GetNext()) {
 }
 sort($existing_items_list);
 
-$items_xml = simplexml_load_file($_POST['xml_url'], 'SimpleXMLElement', LIBXML_NOCDATA)->xpath("//shop/itemlist/item[idproduct>=0]");
+$items_xml = simplexml_load_file($_POST['xml_url'], 'SimpleXMLElement', LIBXML_NOCDATA)->xpath("//shop/itemlist/item[idproduct>=50]");
 
 $items_xml_id = []; // для поиска товаров, не существующих в xml но существующих в базе (для деактивации)
 foreach($items_xml as $val) $items_xml_id[] = (int)$val->idproduct;
 $deactivate = array_diff($existing_items_list, $items_xml_id); // товары, отсутствующие в xml
-unset ($items_xml_id);
+// unset ($items_xml_id);
 
 // актуализируем массив активации/деактивации:
-$deactivate_count = 0;
-$activate_count = 0;
+$activate_list = [];
+$deactivate_list = [];
 foreach($navi_items_list as &$val) { // перебор всех товаров navi
-  if (array_search($val['xml_id'], $deactivate) !== false && strtoupper($val['active']) != 'N') {
-    $val['to_deactivate'] = true;
-    $deactivate_count ++;
-  }
-  if ($val['active'] == 'N') {
-    $val['to_activate'] = true;
-    $activate_count ++;
-  }
+  if (array_search($val['xml_id'], $deactivate) !== false && strtoupper($val['active']) != 'N') $deactivate_list[] = $val;
+  if ($val['active'] == 'N' && array_search($val['xml_id'], $items_xml_id) != false) $activate_list[] = $val;
 }
+unset($navi_items_list);
+
+$activate_count = count($activate_count);
+$deactivate_count = count($deactivate_count);
 
 $items = []; // список товаров из каталога xml для вывода на экран
 $new_products = 0;
@@ -154,7 +152,6 @@ unset($items_xml);
 
 
 <? // деактивация:
-print_r($activate);
 if ($deactivate_count > 0):?>
 	<hr>
   <ul id="ft-deactivate">
@@ -168,20 +165,16 @@ if ($deactivate_count > 0):?>
 	  <li>Выбрано: <span id="deactivate-selection">0</span> товаров</li>
   </ul>
   <ul id="ft-import-deactivate-list" style="display: none">
-    <? foreach($navi_items_list as $val):?>
-		<?if ($val['to_deactivate']):?>
+    <? foreach($deactivate_list as $val):?>
 			<li>
 				<label>
 				<input type="checkbox" class="deactivate-item" data-id="<?=$val['id']?>">
 				<?=$val['name']?>
-					active: <?=$val['active']?>
 				<a href="/bitrix/admin/iblock_element_edit.php?IBLOCK_ID=<?=IBLOCK?>&type=aspro_next_catalog&lang=ru&ID=<?=$val['id']?>&find_section_section=<?=$val['parent']?>&WF=Y" target="blanc">
 					<img class="ft-product-view" src="view.png" title="Просмотр товара">
 				</a>
 				</label>
 			</li>
-
-	  <?endif;?>
     <?endforeach;?>
   </ul>
 <?endif; // деактивация.?>
@@ -196,7 +189,7 @@ function unactive_filter($val) {
 if ($activate_count > 0):?>
 	<hr>
   <ul id="ft-activate">
-    <li class="bold">Товары, неактивные в каталоге NAVI: <?=$activate_count?></li>
+    <li class="bold">Неактивные товары в каталоге NAVI: <?=$activate_count?></li>
     <li>
       <button id="ft-import-activate-view">Показать список</button>
       <button id="ft-import-activate-total">Выбрать все</button>
@@ -206,13 +199,12 @@ if ($activate_count > 0):?>
 	  <li>Выбрано: <span id="activate-selection">0</span> товаров</li>
   </ul>
   <ul id="ft-import-activate-list" style="display: none">
-    <? foreach(array_filter($navi_items_list, 'unactive_filter') as $val):?>
+    <? foreach($activate_list as $val):?>
 		<?if ($val['to_activate']):?>
 			<li>
 				<label>
 				<input type="checkbox" class="activate-item" data-id="<?=$val['id']?>">
 				<?=$val['name']?>
-					active: <?=$val['active']?>
 				<a href="/bitrix/admin/iblock_element_edit.php?IBLOCK_ID=<?=IBLOCK?>&type=aspro_next_catalog&lang=ru&ID=<?=$val['id']?>&find_section_section=<?=$val['parent']?>&WF=Y" target="blanc">
 					<img class="ft-product-view" src="view.png" title="Просмотр товара">
 				</a>
@@ -227,8 +219,8 @@ if ($activate_count > 0):?>
 
 <hr>
 <ul id="ft-products-import">
-  <li class="bold">Всего товаров в каталоге flytechnology: <?=count($items)?></li>
-  <li class="bold">Всего товаров в каталоге NAVI: <?=count($existing_items_list);?></li>
+  <li class="bold">Товары в каталоге flytechnology: <?=count($items)?></li>
+  <li class="bold">Товары в каталоге NAVI: <?=count($existing_items_list);?></li>
 
 <?
 	foreach($items as $val) {
@@ -236,24 +228,29 @@ if ($activate_count > 0):?>
 if (array_search((int)$val['idproduct'], $deactivate)) echo $val['nameproduct'];
 	}
 ?>
-	<li class="bold">Новых товаров в каталоге flytechnology: <?=$new_products;?></li>
-	<li class="bold">Выбранных товаров: <span id="selection">0</span></li>
+	<li class="bold">Новые товары в каталоге flytechnology: <?=$new_products;?></li>
   <li>
     <button id="ft-import-read-more">Показать список</button>
     <button id="ft-import-select">Выбрать все</button>
     <button id="ft-import-unselect">Отменить все</button>
     <button id="ft-import-products" disabled="">Импортировать выбранные</button>
   </li>
+  <li>Выбрано: <span id="selection">0</span> товаров</li>
 </ul>
 <ul id="ft-import-products-list">
   <span class="bold">Товары в каталоге flytechnology (<?=count($items)?>):</span>
   <?foreach ($items as $key=>$val):?>
-	<li>
-		<?$disabled = $val['exists'] ? ' disabled=""':'';?>
-		<label <?=$disabled;?>>
+    <li>
+      <?$disabled = $val['exists'] ? ' disabled=""':'';?>
+      <label <?=$disabled;?>>
         <input  <?=$disabled;?> class="item" type="checkbox" data-id=<?=$val[idproduct]?> >
         <span><?=$val['nameproduct']?></span>
-		<?if ($disabled):?><span class="ft-import-product-exists"> - уже есть в каталоге NAVI </span><?endif;?>
+        <?if ($disabled):?>
+          <a href="/bitrix/admin/iblock_element_edit.php?IBLOCK_ID=<?=IBLOCK?>&type=aspro_next_catalog&lang=ru&ID=<?=$val['id']?>&find_section_section=<?=$val['parent']?>&WF=Y" target="blanc">
+            <img class="ft-product-view" src="view.png" title="Просмотр товара">
+          </a>
+          <span class="ft-import-product-exists"> есть в каталоге NAVI </span>
+          <?endif;?>
       </label>
     </li> 
   <?endforeach;?>
@@ -263,15 +260,70 @@ if (array_search((int)$val['idproduct'], $deactivate)) echo $val['nameproduct'];
 let itemsListVisible = false;
 let itemList = document.querySelectorAll('.item');
 
-const checkedCalc = ()=> {
-  let len = document.querySelectorAll('.item:checked').length;;
-  document.querySelector('#selection').innerHTML = len;
-  let importBtn = document.querySelector('#ft-import-products');
-  if (len) {importBtn.removeAttribute('disabled')}
-  else importBtn.setAttribute('disabled', "");
+const checkedCalc = (elemsSelector, countElem, submitElem)=>{
+  // подсчитывает к-во элементов по селектору elemList, помещает результат в элемент countElem и активирует/деактивирует кнопку submitElem если есть хоть один элемент, соответствующий классу elemList
+  let len = document.querySelectorAll(elemsSelector).length;
+  document.querySelector(countElem).innerHTML = len;
+  let activateBtn = document.querySelector(submitElem);
+  if (len) {activateBtn.removeAttribute('disabled')}
+  else activateBtn.setAttribute('disabled', "");
 }
 
-itemList.forEach((i)=>i.addEventListener('change', checkedCalc));
+const activateProcess = (arraySelector, messageSelector, title, finishTitle, value) => {
+    // активация/деактивация выбранных эл-тов
+    // arraySelector - массив DOM-элементов с аттрибутом data-id для передачи в ajax.
+    // messageSelector - DOM-элемент для отображения статуса процесса
+    // title - текст статуса начала процесса
+    // finishTitle - текст статуса завершения процесса
+    // value - значение поля ACTIVE ('Y' или 'N')
+    let itemSelected = document.querySelectorAll(arraySelector);
+    let selected = [];
+    itemSelected.forEach((i)=>selected.push(i.dataset.id));
+    let deactivateSection = document.querySelector(messageSelector);
+    deactivateSection.innerHTML = `<h2>${title}</h2>`;
+    deactivateSection.innerHTML += `<img src="loading.gif" alt="">`;
+    deactivateSection.innerHTML += `<h3 id="activate-progress"> </h3>`;
+    let progress = document.querySelector('#activate-progress');
+    let index = 0;
+    let success = true;
+    let interval = setInterval(()=>{
+      if (success) {
+        success = false;
+              BX.ajax({
+                  url: 'deactivate_products.php',
+                  data: {
+                    "status" : 'active_products',
+                    "active" : value,
+                    "items": JSON.stringify(selected.slice(index, index+5)),
+                    "xml_url" : "<?=$_POST['xml_url']?>"
+                  },
+                  method: 'POST',
+                  dataType: 'json',
+                  onsuccess: function(data){
+                    index += 5;
+                    success = true;
+                    if (index >= selected.length) {
+                      index = selected.length;
+                      clearInterval(interval);
+                      deactivateSection.innerHTML = `<h2>${finishTitle}</h2>`;
+                      deactivateSection.innerHTML += `Обработано: ${index} товаров`;
+                      console.log("Response: ", data);
+                    } else
+                    {
+                      console.log('Processed: ', index, ' of ', selected.length);
+                      progress.innerHTML = `Обработано ${index} из ${selected.length} товаров`;
+                    }
+                  }
+              });
+        } // if success
+    }, 1000); // setInterval
+  }
+
+const itemsCheckedCalc = ()=> {
+  checkedCalc('.item:checked', '#selection', '#ft-import-products');
+}
+
+itemList.forEach((i)=>i.addEventListener('change', itemsCheckedCalc));
 
 document.querySelector('#ft-import-read-more').addEventListener('click', (e)=>{
   let el = document.querySelector('#ft-import-products-list');
@@ -289,11 +341,11 @@ document.querySelector('#ft-import-read-more').addEventListener('click', (e)=>{
 document.querySelector('#ft-import-select').addEventListener('click', ()=>
 {
   itemList.forEach((i)=> {if (i.getAttribute('disabled') === null) i.checked=true});
-  checkedCalc();
+  itemsCheckedCalc();
 })
 document.querySelector('#ft-import-unselect').addEventListener('click', ()=>{
   itemList.forEach((i)=>i.checked=false);
-  checkedCalc();
+  itemsCheckedCalc();
 })
 
 document.querySelector('#ft-import-products').addEventListener('click', ()=>{
@@ -315,10 +367,10 @@ document.querySelector('#ft-import-products').addEventListener('click', ()=>{
             BX.ajax({
                 url: 'import_products.php',
                 data: {
-          "status" : 'load_products',
-          "items": JSON.stringify(selected.slice(index, index+5)),
-          "xml_url" : "<?=$_POST['xml_url']?>"
-        },
+                  "status" : 'load_products',
+                  "items": JSON.stringify(selected.slice(index, index+5)),
+                  "xml_url" : "<?=$_POST['xml_url']?>"
+                },
                 method: 'POST',
                 dataType: 'json',
                 onsuccess: function(data){
@@ -366,13 +418,8 @@ document.querySelector('#ft-import-products').addEventListener('click', ()=>{
   activateListVisible = !activateListVisible;
 })
 
-
   const activateCheckedCalc = ()=> {
-    let len = document.querySelectorAll('.activate-item:checked').length;;
-    document.querySelector('#activate-selection').innerHTML = len;
-    let activateBtn = document.querySelector('#ft-import-activate-selected');
-    if (len) {activateBtn.removeAttribute('disabled')}
-    else activateBtn.setAttribute('disabled', "");
+    checkedCalc('.activate-item:checked', '#activate-selection', '#ft-import-activate-selected');
   }
 
   activate.forEach((i)=>i.addEventListener('change', activateCheckedCalc));
@@ -385,11 +432,16 @@ document.querySelector('#ft-import-products').addEventListener('click', ()=>{
   document.querySelector('#ft-import-activate-clear').addEventListener('click', ()=>{
     activate.forEach((i)=>i.checked=false);
     activateCheckedCalc();
-  })
+  });
+  document.querySelector('#ft-import-activate-selected').addEventListener('click', ()=>{
+    document.querySelector('#ft-import-activate-list').style.display = "none";
+    activateProcess('.activate-item:checked', '#ft-activate', 'Активация выбранных товаров...', 'Активация завершена.', 'Y');
+  });
+  
 </script>
 <?endif; // конец скрипта активации?>
 
-<?if ($deactivate_count > 0): // скрипт деактивации?>
+<?if ($deactivate_count > 0): // скрипт деактивации:?>
 <script>
 
   let deactivate = document.querySelectorAll('.deactivate-item');
@@ -414,11 +466,7 @@ document.querySelector('#ft-import-products').addEventListener('click', ()=>{
 
 
   const deactivateCheckedCalc = ()=> {
-    let len = document.querySelectorAll('.deactivate-item:checked').length;;
-    document.querySelector('#deactivate-selection').innerHTML = len;
-    let deactivateBtn = document.querySelector('#ft-import-deactivate-selected');
-    if (len) {deactivateBtn.removeAttribute('disabled')}
-    else deactivateBtn.setAttribute('disabled', "");
+    checkedCalc('.deactivate-item:checked', '#deactivate-selection', '#ft-import-deactivate-selected');
   }
 
   deactivate.forEach((i)=>i.addEventListener('change', deactivateCheckedCalc));
@@ -433,51 +481,10 @@ document.querySelector('#ft-import-products').addEventListener('click', ()=>{
     deactivateCheckedCalc();
   })
 
-
   document.querySelector('#ft-import-deactivate-selected').addEventListener('click', ()=>{
-    let itemSelected = document.querySelectorAll('.deactivate-item:checked');
-
-    let selected = [];
-    itemSelected.forEach((i)=>selected.push(i.dataset.id));
-    let deactivateSection = document.querySelector('#ft-deactivate');
-    deactivateSection.innerHTML = "<h2>Деактивация выбранных товаров...</h2>";
-    deactivateSection.innerHTML += `<img src="loading.gif" alt="">`;
-    deactivateSection.innerHTML += `<h3 id="deactivate-progress"> </h3>`;
-    let progress = document.getElementById('deactivate-progress');
-
-    let index = 0;
-    let success = true;
-    let interval = setInterval(()=>{
-      if (success) {
-        success = false;
-              BX.ajax({
-                  url: 'deactivate_products.php',
-                  data: {
-            "status" : 'deactivate_products',
-            "items": JSON.stringify(selected.slice(index, index+5)),
-            "xml_url" : "<?=$_POST['xml_url']?>"
-          },
-                  method: 'POST',
-                  dataType: 'json',
-                  onsuccess: function(data){
-
-            index += 5;
-
-            success = true;
-            if (index >= selected.length) {
-              index = selected.length;
-              clearInterval(interval);
-              deactivateSection.innerHTML = "<h2>Деактивация товаров завершена.</h2>";
-              document.querySelector("#ft-import-deactivate-list").innerHTML = `Деактивировано: ${index} товаров`;
-          console.log("Response: ", data);
-            }
-            console.log('Deactivated: ', index, ' from ', selected.length);
-            progress.innerHTML = `Деактивировано ${index} из ${selected.length} товаров`;
-                  }
-              });
-        } // if success
-    }, 1000); // setInterval
-  }); // ('#ft-import-deactivate-selected').addEventListener
+    document.querySelector('#ft-import-deactivate-list').style.display = "none";
+    activateProcess('.deactivate-item:checked', '#ft-deactivate', 'Деактивация выбранных товаров...', 'Деактивация завершена.', 'N');
+    });
 </script>
 <?endif; // скрипт деактивации?>
 <?endif; // конец обработки нажатия кнопки импорт?>

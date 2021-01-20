@@ -12,10 +12,10 @@ set_time_limit(0);
 
 $result = [];
 // деактивируем товары на основании массива $_POST['items']
-if (array_key_exists('status', $_POST) && $_POST['status'] == 'deactivate_products'){
+if (array_key_exists('status', $_POST) && $_POST['status'] == 'active_products'){
   $items = json_decode($_POST['items']);
 	foreach($items as $val) {
-		$b_el->Update($val, ["ACTIVE"=>'N']);
+		$b_el->Update($val, ["ACTIVE"=>$_POST['active']]);
 		if ($b_el->LAST_ERROR) $result[] = $b_el->LAST_ERROR." ".$val;
 	}
 }
