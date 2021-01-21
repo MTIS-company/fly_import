@@ -1,8 +1,9 @@
 <?
-require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
-$APPLICATION->SetTitle("Импорт flytechnology");
-$cmain = new CMain;
-$cmain->SetAdditionalCSS($cmain->GetCurPage().'styles.css');
+  require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
+  $APPLICATION->SetTitle("Импорт flytechnology");
+  $cmain = new CMain;
+  $cmain->SetAdditionalCSS($cmain->GetCurPage().'styles.css');
+  $file = new CFile;
 ?>
 
 <?
@@ -42,6 +43,10 @@ if (!$read_xml):?>
 	exit();
 endif;
 
+$xml = simplexml_load_file('folders_img.xml', 'SimpleXMLElement');
+$category_img_xml = $xml->xpath("//pictures/picture");
+$category_img = [];
+foreach($category_img_xml as $val) $category_img [(string)$val->namecategory] = (string)$val->img;
   $categories = $read_xml->xpath("//shop/categories/category");
   //импорт разделов
   $cat_assoc = []; // для замены name на id
@@ -49,6 +54,7 @@ endif;
     $item->idcategory = trim((string)$item->idcategory);
     $item->namecategory = trim((string)$item->namecategory);
     $item->parentcategory = trim((string)$item->parentcategory);
+    $item->picture = (string)$category_img[(string)$item->namecategory];
     $cat_assoc[(string)$item->namecategory] = (int)$item->idcategory; 
   }
   
@@ -60,9 +66,9 @@ endif;
     "IBLOCK_SECTION_ID"=> SECTION,
     "NAME" => $i->namecategory,
     "XML_ID" => $i->idcategory, // входящий id
+    "PICTURE" => $file->MakeFileArray($i->picture),
     "CODE" => SECTION_PREFIX.$i->idcategory // добавляем входящий id к символьному коду раздела (во избежание дублирования при последующем импорте)
     ];
-
   
     $ID = $bs->Add($arFields); // создаем новую запись
     // если новый раздел был создан - добавляем запись в масив $new_sections:
@@ -79,7 +85,7 @@ endif;
     $bs->Update($value['id'], ["IBLOCK_SECTION_ID"=>$parent_change[(int)$value['xmlparentcategory']]]);
   }
 
-// -------------------------------- конец обработки списка разделов товаров (папок) ----------------------
+// -------------------------------- конец обработки списка разделов товаров ----------------------
 ?> 
 
 <ul id="ft-sectionsinfo">
