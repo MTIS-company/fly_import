@@ -18,7 +18,7 @@ $items = json_decode($_POST['items']);
 $xml = simplexml_load_file(XML_URL, 'SimpleXMLElement', LIBXML_NOCDATA);
 
 
-$cat_assoc = []; // масс. привязки id категории по ее name
+$cat_assoc = []; // масс. привязки id категории по ее name (нормализация таблицы)
 $list = CIBlockSection::GetList([], ["IBLOCK_ID"=>IBLOCK, "CODE"=>SECTION_PREFIX."%"], true);  
 while($el = $list->GetNext()) {
 	$cat_assoc[$el['NAME']] = (int)$el['ID'];
@@ -28,11 +28,11 @@ $items_imported = 0;
 $result = [];
 $result [] = "Результат импорта:";
 $items_from_xml = $xml->xpath("//shop/itemlist/item");
-foreach($items_from_xml as $i) { // перебор массива импортируемых товаров, полученного через $_POST
-	//$i = $xml->xpath("//shop/itemlist/item[idproduct=$val]")[0];
+foreach($items_from_xml as $i) { // перебор массива импортируемых товаров, полученного из xml
 
-if (array_search((int)$i->idproduct, $items) === false) continue;
-	if (isset($cat_assoc[(string)$i->namecategoryproduct])) {
+  if (array_search((int)$i->idproduct, $items) === false) continue; // - товар отсутствует в списке, полученном в $_POST
+  
+  if (isset($cat_assoc[(string)$i->namecategoryproduct])) { // замена имени категории на id
 		$i->idcategory = $cat_assoc[(string)$i->namecategoryproduct];
 	}
 	else {

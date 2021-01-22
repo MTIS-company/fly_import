@@ -1,6 +1,7 @@
 <?
-include_once 'phpQuery/phpQuery.php';
-$html = phpQuery::newDocument(file_get_contents('https://flytechnology.ua'));
+include_once 'phpQuery.php';
+// ! - парсим русскоязычный контент /ru
+$html = phpQuery::newDocument(file_get_contents('https://flytechnology.ua/ru'));
 $main_menu = [];
 $dom = $html->find('#oct-menu-dropdown-menu a.oct-menu-a');
 foreach($dom as $val) {

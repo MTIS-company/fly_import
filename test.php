@@ -20,6 +20,8 @@ $a = [
 // $category_img = [];
 // foreach($category_img_xml as $val) $category_img [(string)$val->namecategory] = (string)$val->img;
 // print_r($category_img);
-echo preg_match('/^(http|https|ftp):[\/]{2}/i', 'http:');
+// echo preg_match('/^(http|https|ftp):[\/]{2}/i', 'http:');
+$s = 'sdsdsHasseldbsdd';
+echo strpos($s, 'has');
 
 ?>
