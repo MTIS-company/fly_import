@@ -21,7 +21,6 @@ $a = [
 // foreach($category_img_xml as $val) $category_img [(string)$val->namecategory] = (string)$val->img;
 // print_r($category_img);
 // echo preg_match('/^(http|https|ftp):[\/]{2}/i', 'http:');
-$s = 'sdsdsHasseldbsdd';
-echo strpos($s, 'has');
-
+$value='jfFfhf55555kdjd89';
+echo $val = preg_replace('/[^0-9]/', '', $value);
 ?>

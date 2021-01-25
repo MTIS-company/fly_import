@@ -3,15 +3,14 @@ require($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_before.ph
 CModule::IncludeModule("iblock");
 CModule::IncludeModule("catalog");
 
-$bs = new CIBlockSection;
 $b_el = new CIBlockElement;
 $file = new CFile;
 $price = new CPrice;
 require "config.php";
 set_time_limit(0);
 
+if (!isset($_POST['items'])) exit(json_encode(['Ошибка '=> ' не передан массив данных'], JSON_UNESCAPED_UNICODE));
 // импортируем товары на основании массива $_POST['items']
-if (array_key_exists('status', $_POST) && $_POST['status'] == 'load_products'){
 
 $items = json_decode($_POST['items']);
 
@@ -68,6 +67,7 @@ foreach($items_from_xml as $i) { // перебор массива импорти
           'BRAND'=>$i->namebrand,
           'CML2_ARTICLE'=>$i->articulproduct,
           'code_element'=>$i->codeproduct,
+          'CATALOG'=>CATALOG_ID
         ]
     ]);
   
@@ -98,6 +98,5 @@ foreach($items_from_xml as $i) { // перебор массива импорти
 
 exit (json_encode($result, JSON_UNESCAPED_UNICODE));
 
-}; //endif
 ?>
 

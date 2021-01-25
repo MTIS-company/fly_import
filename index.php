@@ -247,8 +247,8 @@ if ($activate_count > 0):?>
         <?if ($disabled):// ссылка на товар в базе navi?>
           <!-- <a href="/bitrix/admin/iblock_element_edit.php?IBLOCK_ID=<?=IBLOCK?>&type=aspro_next_catalog&lang=ru&ID=12781&WF=Y" target="blanc">
             <img class="ft-product-view" src="view.png" title="Просмотр товара">
-          </a>
-          <span class="ft-import-product-exists"> есть в каталоге NAVI </span> -->
+          </a>-->
+          <span class="ft-import-product-exists"> есть в каталоге NAVI </span> 
         <?endif;?>
       </label>
     </li> 
