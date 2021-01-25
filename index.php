@@ -69,24 +69,40 @@ $categories = $read_xml->xpath("//shop/categories/category");
       "NAME" => $i->namecategory,
       "XML_ID" => $i->idcategory, // входящий id
       "PICTURE" => $file->MakeFileArray($photo),
-      "CODE" => SECTION_PREFIX.$i->idcategory // добавляем входящий id к символьному коду раздела (во избежание дублирования при последующем импорте)
+      "CODE" => SECTION_PREFIX.$i->idcategory, // добавляем входящий id к символьному коду раздела (во избежание дублирования при последующем импорте)
     ];
     $ID = $bs->Add($arFields); // создаем новую запись
     $APPLICATION->GetException();
     // если новый раздел был создан - добавляем запись в масив $new_sections:
-    if ($ID) $new_sections [] = ['id'=>$ID, 'xmlparentcategory'=>$i->idparentcategory];
+    if ($ID) {
+      $new_sections [] = ['id'=>$ID, 'xmlparentcategory'=>$i->idparentcategory, 'section_name'=>$i->namecategory];
+      $bs->Update($ID, ["UF_CATALOG" => SECTION_CATALOG_ID]); // принадлежность к каталогу flytechnology
+    }
   }
   
   $parent_change = []; // массив для замены родительских id новыми значениями:
-  // выборка всех папок включая вложеные с символьным кодом SECTION_PREFIX 
-  $list = CIBlockSection::GetList([], ["IBLOCK_ID"=>IBLOCK, "CODE"=>SECTION_PREFIX."%"], true);  
-  while($el = $list->GetNext()) $parent_change[$el['XML_ID']] = (int)$el['ID'] ? (int)$el['ID'] : SECTION;
-
+  // выборка всех папок каталога flytechnology, включая вложеные  
+  $list = CIBlockSection::GetList([], ["IBLOCK_ID"=>IBLOCK, "UF_CATALOG"=>SECTION_CATALOG_ID], false, ["UF_CATALOG"]);  
+  while($el = $list->GetNext()) {
+    $parent_change[$el['XML_ID']] = (int)$el['ID'] ? (int)$el['ID'] : SECTION;
+  }
   // заменяем входящие id разделов реальными id в новосозданных записях:
-  foreach ($new_sections as $value) {
-    $bs->Update($value['id'], ["IBLOCK_SECTION_ID"=>$parent_change[(int)$value['xmlparentcategory']]]);
+  foreach ($new_sections as &$value) {
+    $new_section_id = $parent_change[(int)$value['xmlparentcategory']];
+    $bs->Update($value['id'], ["IBLOCK_SECTION_ID"=>$new_section_id]);
+    $nav = $bs->GetNavChain(false, $new_section_id);
+    $path = '';
+    foreach ($nav->arResult as $val) $path .= $val['NAME'].'/';
+    while($nav->ExtractFields("nav_")) if ($nav_ID==$new_section_id) $value['path'] = $path.$value['section_name'];
+    $value['parent'] = $new_section_id;
   }
 
+  function sections_sort ($a, $b) {
+    if ($a == $b) return 0;
+    return ($a['parent'] < $b['parent']) ? -1 : 1;
+  };
+  usort ($new_sections, 'sections_sort');
+  foreach($new_sections as $val) echo $val['path'].'<br>';
 // -------------------------------- конец обработки списка разделов товаров ----------------------
 ?> 
 
@@ -104,7 +120,7 @@ $existing_items_request = $b_el->GetList( // создаем список тов�
  false,
  ["ID", "IBLOCK_ID", "XML_ID", "NAME", "IBLOCK_SECTION_ID", "ACTIVE"]
 );
-$existing_items_list = []; // товары, существующие в базе
+$existing_items_list = []; // масс. xml_id товаров, существующих в базе
 $navi_items_list = []; // все товары navi
 while ($el = $existing_items_request->GetNext()) {
   $existing_items_list [] = (int)$el['XML_ID'];
@@ -128,7 +144,7 @@ $deactivate = array_diff($existing_items_list, $items_xml_id); // товары, 
 // актуализируем массивы активации/деактивации:
 $activate_list = [];
 $deactivate_list = [];
-foreach($navi_items_list as &$val) { // перебор всех товаров navi
+foreach($navi_items_list as $val) { // перебор всех товаров navi
   if (array_search($val['xml_id'], $deactivate) != false && strtoupper($val['active']) == 'Y') $deactivate_list[] = $val;
   if ($val['active'] == 'N' && array_search($val['xml_id'], $items_xml_id) != false) $activate_list[] = $val;
 }
@@ -144,7 +160,11 @@ $new_products = 0;
 foreach ($items_xml as $val) {
 	$exists = array_search( (int)$val->idproduct, $existing_items_list)===false ? 0 : 1;
 	if (!$exists) $new_products ++;
-	if ($val) $items[] = ['nameproduct'=>(string)$val->nameproduct, 'idproduct'=>(int)$val->idproduct, 'exists'=>$exists];
+	if ($val) $items[] = [
+    'nameproduct'=>(string)$val->nameproduct,
+    'idproduct'=>(int)$val->idproduct,
+    'exists'=>$exists,
+  ];
 }
 
 //сортируем по полю exists (desc)

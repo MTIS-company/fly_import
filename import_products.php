@@ -18,7 +18,8 @@ $xml = simplexml_load_file(XML_URL, 'SimpleXMLElement', LIBXML_NOCDATA);
 
 
 $cat_assoc = []; // масс. привязки id категории по ее name (нормализация таблицы)
-$list = CIBlockSection::GetList([], ["IBLOCK_ID"=>IBLOCK, "CODE"=>SECTION_PREFIX."%"], true);  
+// $list = CIBlockSection::GetList([], ["IBLOCK_ID"=>IBLOCK, "CODE"=>SECTION_PREFIX."%"], true);  
+$list = CIBlockSection::GetList([], ["IBLOCK_ID"=>IBLOCK, "UF_CATALOG"=>SECTION_CATALOG_ID], true);  
 while($el = $list->GetNext()) {
 	$cat_assoc[$el['NAME']] = (int)$el['ID'];
 }
