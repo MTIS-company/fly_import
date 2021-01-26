@@ -10,11 +10,12 @@ require "config.php";
 set_time_limit(0);
 
 if (!isset($_POST['items'])) exit(json_encode(['Ошибка '=> ' не передан массив данных'], JSON_UNESCAPED_UNICODE));
+if (!isset($_POST['xml_url'])) exit(json_encode(['Ошибка '=> ' не передан URL xml каталога'], JSON_UNESCAPED_UNICODE));
+
 // импортируем товары на основании массива $_POST['items']
 
 $items = json_decode($_POST['items']);
-
-$xml = simplexml_load_file(XML_URL, 'SimpleXMLElement', LIBXML_NOCDATA);
+$xml = simplexml_load_file($_POST['xml_url'], 'SimpleXMLElement', LIBXML_NOCDATA);
 
 
 $cat_assoc = []; // масс. привязки id категории по ее name (нормализация таблицы)
@@ -44,7 +45,7 @@ foreach($items_from_xml as $i) { // перебор массива импорти
   $arFields = [
     "IBLOCK_ID" => IBLOCK,
     "IBLOCK_SECTION_ID"=>$i->idcategory,
-    "NAME" => $i->nameproduct,
+    "NAME" => CATALOG_PREFIX.(string)$i->nameproduct,
     "XML_ID" => $i->idproduct, // входящий id
     "ACTIVE"=>$i->aviability ? "Y" : "N",
     "CODE"=> ITEM_PREFIX.$i->idproduct, // добавляем входящий id к символьному коду раздела (создаем уникальный код во избежание дублирования при последующем импорте)
@@ -68,7 +69,6 @@ foreach($items_from_xml as $i) { // перебор массива импорти
           'BRAND'=>$i->namebrand,
           'CML2_ARTICLE'=>$i->articulproduct,
           'code_element'=>$i->codeproduct,
-          'CATALOG'=>CATALOG_ID
         ]
     ]);
   

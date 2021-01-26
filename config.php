@@ -1,13 +1,12 @@
 <?
   const XML_URL = "https://portal.flytechnology.ua/media/export/product/flytech.xml";
   const IBLOCK = 21; // инфоблок каталога flytechnologies
-  const SECTION = 322; // id корневого раздела для данного каталога товаров
-  const SECTION_PREFIX = 'flytechnology'; // префикс символьного кода разделов
+  const SECTION = 6146; // id корневого раздела для данного каталога товаров
+  const CATALOG_PREFIX = 'flytechnology'; // префикс поля xml_id и символьного кода разделов. Служит для идентификации принадлежности категорий и товаров к каталогу flytechnology
   const ITEM_PREFIX = 'flytechnology_item'; // префикс символьного кода товаров
-  // const CATALOG_ID = 145; // id каталога flytechnology для товаров
-  // const SECTION_CATALOG_ID = 28; // id каталога flytechnology для разделов
 
   function parse_int ($str) { // возв. числовую часть строки
     return preg_replace('/[^0-9]/', '', $str);
   };
+  
 ?>

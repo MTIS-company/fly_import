@@ -121,25 +121,27 @@ $categories = $read_xml->xpath("//shop/categories/category"); // категор�
     };
     usort ($new_sections, 'sections_sort');
   }
-  // -------------------------------- конец обработки списка разделов товаров ----------------------
+  // -------------------------------- конец обработки списка категорий ----------------------
   ?> 
 
 <ul id="ft-sectionsinfo">
   <li class="bold">Всего разделов в каталоге Flytechnology: <?=count($categories)?></li>
   <li class="bold">Импортировано разделов из каталога Flytechnology: <?=count($new_sections)?></li>
-  <li><button id="ft-sections-list-show" data-show="hidden">Показать список</button></li>
 </ul>
-<ul id="ft-sections-list" style="display:none">
-  <?
-    foreach($new_sections as $val):?>
-    <li>
-      <a href="/bitrix/admin/iblock_section_edit.php?IBLOCK_ID=<?=IBLOCK?>&type=aspro_next_catalog&lang=ru&ID=<?=$val['id']?>" target="blanc" title="Просмотр категории товаров">
-        <span><?=$val['path']?></span>
-        <img class="ft-product-view" src="view.png">
-      </a>
-    </li>
-    <?endforeach;?>
-</ul>
+<?if (count($new_sections) > 0):?>
+  <button id="ft-sections-list-show" data-show="hidden">Показать список</button>
+  <ul id="ft-sections-list" style="display:none">
+    <?
+      foreach($new_sections as $val):?>
+      <li>
+        <a href="/bitrix/admin/iblock_section_edit.php?IBLOCK_ID=<?=IBLOCK?>&type=aspro_next_catalog&lang=ru&ID=<?=$val['id']?>" target="blanc" title="Просмотр категории товаров">
+          <span><?=$val['path']?></span>
+          <img class="ft-product-view" src="view.png">
+        </a>
+      </li>
+      <?endforeach;?>
+  </ul>
+<?endif;?>
 
 <? // --------------------------- обработка списка товаров -------------------------
 
