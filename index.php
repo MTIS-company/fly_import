@@ -52,9 +52,9 @@ if ($xml) {
 if (!$xml):?>
   <h2>Ошибка чтения списка изображений разделов</h2>
 <?endif;
-unset($xml);
+  unset($xml);
 
-$categories = $read_xml->xpath("//shop/categories/category"); // категории из внешнего каталога
+  $categories = $read_xml->xpath("//shop/categories/category"); // категории из внешнего каталога
   $cat_assoc = []; // для замены name на id (нормализация таблицы)
   foreach ($categories as &$item) {
     $item->idcategory = trim((string)$item->idcategory);
@@ -67,7 +67,7 @@ $categories = $read_xml->xpath("//shop/categories/category"); // категор�
   function get_folders() {// возв. категории внешнего каталога, существующие в navi
     $list = CIBlockSection::GetList([], ["IBLOCK_ID"=>IBLOCK], false, ["ID", "XML_ID"]); // все категории navi
     $ft_list = []; 
-    while($el = $list->GetNext()) if (strpos($el['XML_ID'], SECTION_PREFIX) !== false) $ft_list[] = ['XML_ID'=>parse_int($el['XML_ID']), 'ID'=>$el['ID']];
+    while($el = $list->GetNext()) if (strpos($el['XML_ID'], CATALOG_PREFIX) !== false) $ft_list[] = ['XML_ID'=>parse_int($el['XML_ID']), 'ID'=>$el['ID']];
     return $ft_list;
   };
 
@@ -87,9 +87,9 @@ $categories = $read_xml->xpath("//shop/categories/category"); // категор�
       "IBLOCK_ID" => IBLOCK,
       "IBLOCK_SECTION_ID"=> SECTION,
       "NAME" => $i->namecategory,
-      "XML_ID" => SECTION_PREFIX.(string)$i->idcategory, // входящий id вида: "flytechnology{xml_id}"
+      "XML_ID" => CATALOG_PREFIX.(string)$i->idcategory, // входящий id вида: "flytechnology{xml_id}"
       "PICTURE" => $file->MakeFileArray((string)$i->picture),
-      "CODE" => SECTION_PREFIX.$i->idcategory, // добавляем входящий id к символьному коду раздела (во избежание дублирования при последующем импорте)
+      "CODE" => CATALOG_PREFIX.$i->idcategory, // добавляем входящий id к символьному коду раздела (во избежание дублирования при последующем импорте)
     ];
     $ID = $bs->Add($arFields); // создаем новую запись
     $APPLICATION->GetException();
@@ -122,8 +122,8 @@ $categories = $read_xml->xpath("//shop/categories/category"); // категор�
     usort ($new_sections, 'sections_sort');
   }
   // -------------------------------- конец обработки списка категорий ----------------------
-  ?> 
-
+?> 
+<!-- Вывод рез-татов импорта категорий -->
 <ul id="ft-sectionsinfo">
   <li class="bold">Всего разделов в каталоге Flytechnology: <?=count($categories)?></li>
   <li class="bold">Импортировано разделов из каталога Flytechnology: <?=count($new_sections)?></li>
@@ -147,24 +147,27 @@ $categories = $read_xml->xpath("//shop/categories/category"); // категор�
 
 $existing_items_request = $b_el->GetList( // создаем список товаров, уже существующих в базе
  [(int)"XML_ID"=>"ASC"],
- ["IBLOCK_ID"=>IBLOCK, "CODE"=>ITEM_PREFIX."%"],
+//  ["IBLOCK_ID"=>IBLOCK, "CODE"=>ITEM_PREFIX."%"],
+ ["IBLOCK_ID"=>IBLOCK],
  false,
  false,
  ["ID", "IBLOCK_ID", "XML_ID", "NAME", "IBLOCK_SECTION_ID", "ACTIVE"]
 );
 $existing_items_list = []; // масс. xml_id товаров, существующих в базе
-$navi_items_list = []; // все товары navi
+$navi_items_list = []; // все товары navi из каталога flytechnology
 while ($el = $existing_items_request->GetNext()) {
-  $existing_items_list [] = (int)$el['XML_ID'];
+  if (strpos($el['XML_ID'], CATALOG_PREFIX) === false) continue;
+  $existing_items_list [] = parse_int($el['XML_ID']);
   $navi_items_list[] = 
     [ 
-      'xml_id' => (int)$el['XML_ID'],
+      'xml_id' => parse_int($el['XML_ID']),
       'name' => (string)$el['NAME'],
       'id' => (int)$el['ID'],
       'parent' => (int)$el['IBLOCK_SECTION_ID'],
       'active' => (string)$el['ACTIVE']
     ];
 }
+unset($existing_items_request);
 sort($existing_items_list);
 
 // все товары flytechnology:
@@ -309,11 +312,13 @@ if ($activate_count > 0):?>
 
 <script>
 let sectionsShow = document.querySelector('#ft-sections-list-show');
-sectionsShow.addEventListener('click', (e)=>{
-  sectionsShow.dataset.show = sectionsShow.dataset.show == 'hidden' ? "visible" : "hidden";
-  sectionsShow.innerHTML = sectionsShow.dataset.show == 'hidden' ? "Показать список" : "Скрыть список";
-  document.querySelector('#ft-sections-list').style.display = sectionsShow.dataset.show == 'hidden' ? "none" : "block";
-})
+if (sectionsShow) {
+  sectionsShow.addEventListener('click', (e)=>{
+    sectionsShow.dataset.show = sectionsShow.dataset.show == 'hidden' ? "visible" : "hidden";
+    sectionsShow.innerHTML = sectionsShow.dataset.show == 'hidden' ? "Показать список" : "Скрыть список";
+    document.querySelector('#ft-sections-list').style.display = sectionsShow.dataset.show == 'hidden' ? "none" : "block";
+  });
+}
 
 let itemsListVisible = false;
 let itemList = document.querySelectorAll('.item');
@@ -426,7 +431,6 @@ document.querySelector('#ft-import-products').addEventListener('click', ()=>{
       BX.ajax({
           url: 'import_products.php',
           data: {
-            "status" : 'load_products',
             "items": JSON.stringify(selected.slice(index, index+5)),
             "xml_url" : "<?=$_POST['xml_url']?>"
           },

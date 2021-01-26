@@ -17,17 +17,18 @@ if (!isset($_POST['xml_url'])) exit(json_encode(['Ошибка '=> ' не пер
 $items = json_decode($_POST['items']);
 $xml = simplexml_load_file($_POST['xml_url'], 'SimpleXMLElement', LIBXML_NOCDATA);
 
+$result = []; // ответ сервера (log)
 
 $cat_assoc = []; // масс. привязки id категории по ее name (нормализация таблицы)
 // $list = CIBlockSection::GetList([], ["IBLOCK_ID"=>IBLOCK, "CODE"=>SECTION_PREFIX."%"], true);  
-$list = CIBlockSection::GetList([], ["IBLOCK_ID"=>IBLOCK, "UF_CATALOG"=>SECTION_CATALOG_ID], true);  
+$list = CIBlockSection::GetList([], ["IBLOCK_ID"=>IBLOCK], true);  
 while($el = $list->GetNext()) {
+  if (!$el['XML_ID']) continue;
+  if (strpos($el['XML_ID'], CATALOG_PREFIX) != 0) continue;
 	$cat_assoc[$el['NAME']] = (int)$el['ID'];
 }
 
 $items_imported = 0;
-$result = [];
-$result [] = "Результат импорта:";
 $items_from_xml = $xml->xpath("//shop/itemlist/item");
 foreach($items_from_xml as $i) { // перебор массива импортируемых товаров, полученного из xml
 
@@ -45,8 +46,8 @@ foreach($items_from_xml as $i) { // перебор массива импорти
   $arFields = [
     "IBLOCK_ID" => IBLOCK,
     "IBLOCK_SECTION_ID"=>$i->idcategory,
-    "NAME" => CATALOG_PREFIX.(string)$i->nameproduct,
-    "XML_ID" => $i->idproduct, // входящий id
+    "NAME" => $i->nameproduct,
+    "XML_ID" => CATALOG_PREFIX.(string)$i->idproduct, // входящий id
     "ACTIVE"=>$i->aviability ? "Y" : "N",
     "CODE"=> ITEM_PREFIX.$i->idproduct, // добавляем входящий id к символьному коду раздела (создаем уникальный код во избежание дублирования при последующем импорте)
     "DETAIL_TEXT"=>$i->descriptionproduct,

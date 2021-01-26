@@ -7,6 +7,7 @@ $b_el = new CIBlockElement;
 set_time_limit(0);
 
 if (!isset($_POST['items'])) exit(json_encode(['Ошибка '=> ' не передан массив данных'], JSON_UNESCAPED_UNICODE));
+if (!isset($_POST['active'])) exit(json_encode(['Ошибка '=> ' не передано значение active'], JSON_UNESCAPED_UNICODE));
 
 $result = [];
 // деактивируем товары на основании массива $_POST['items']
