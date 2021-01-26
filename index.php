@@ -23,7 +23,7 @@
     <span>URL каталога:</span>
     <input type="text" value=<?=XML_URL?> name="xml_url" action="">
     <input type="hidden" name="status" value="xml_loaded">
-    <button id="import-section" type="submit">Импорт</button>
+    <button id="import-section" type="submit">Импортировать разделы</button>
   </form>
   <div id="show-wait-sections"></div>
   <script>
@@ -42,14 +42,20 @@ if (!$read_xml):?>
 	exit();
 endif;
 
-$xml = simplexml_load_file('folders_img.xml', 'SimpleXMLElement');
-$category_img_xml = $xml->xpath("//pictures/picture");
-$category_img = [];
-foreach($category_img_xml as $val) $category_img [(string)$val->namecategory] = (string)$val->img;
+$category_img = []; // масс. картинок категорий товаров
+$xml = simplexml_load_file('folders_img.xml', 'SimpleXMLElement'); // получаем картинки категорий товаров из folders_img.xml
 
-$categories = $read_xml->xpath("//shop/categories/category");
-//импорт разделов
-  $cat_assoc = []; // для замены name на id
+if ($xml) {
+  $category_img_xml = $xml->xpath("//pictures/picture"); 
+  foreach($category_img_xml as $val) $category_img [(string)$val->namecategory] = (string)$val->img;
+} 
+if (!$xml):?>
+  <h2>Ошибка чтения списка изображений разделов</h2>
+<?endif;
+unset($xml);
+
+$categories = $read_xml->xpath("//shop/categories/category"); // категории из внешнего каталога
+  $cat_assoc = []; // для замены name на id (нормализация таблицы)
   foreach ($categories as &$item) {
     $item->idcategory = trim((string)$item->idcategory);
     $item->namecategory = trim((string)$item->namecategory);
@@ -58,57 +64,81 @@ $categories = $read_xml->xpath("//shop/categories/category");
     $cat_assoc[(string)$item->namecategory] = (int)$item->idcategory;
   }
 
-  $new_sections = []; // новые разделы
+  function get_folders() {// возв. категории внешнего каталога, существующие в navi
+    $list = CIBlockSection::GetList([], ["IBLOCK_ID"=>IBLOCK], false, ["ID", "XML_ID"]); // все категории navi
+    $ft_list = []; 
+    while($el = $list->GetNext()) if (strpos($el['XML_ID'], SECTION_PREFIX) !== false) $ft_list[] = ['XML_ID'=>parse_int($el['XML_ID']), 'ID'=>$el['ID']];
+    return $ft_list;
+  };
 
-  foreach ($categories as $i) { // импортируем разделы в таблицы бд
-    $photo = (string)$i->picture;
+  $ft_list = get_folders();
+
+  // импортируем категории в таблицы бд:
+  $new_sections = []; // новые категории
+  foreach ($categories as $i) {
+    // проверяем наличие категории в базе navi:
+    $exists = false;
+    foreach ($ft_list as $val ){
+      if ($val['XML_ID'] == (string)$i->idcategory) $exists = true;
+    };
+    if ($exists) continue;
 
     $arFields = [
       "IBLOCK_ID" => IBLOCK,
       "IBLOCK_SECTION_ID"=> SECTION,
       "NAME" => $i->namecategory,
-      "XML_ID" => $i->idcategory, // входящий id
-      "PICTURE" => $file->MakeFileArray($photo),
+      "XML_ID" => SECTION_PREFIX.(string)$i->idcategory, // входящий id вида: "flytechnology{xml_id}"
+      "PICTURE" => $file->MakeFileArray((string)$i->picture),
       "CODE" => SECTION_PREFIX.$i->idcategory, // добавляем входящий id к символьному коду раздела (во избежание дублирования при последующем импорте)
     ];
     $ID = $bs->Add($arFields); // создаем новую запись
     $APPLICATION->GetException();
     // если новый раздел был создан - добавляем запись в масив $new_sections:
-    if ($ID) {
-      $new_sections [] = ['id'=>$ID, 'xmlparentcategory'=>$i->idparentcategory, 'section_name'=>$i->namecategory];
-      $bs->Update($ID, ["UF_CATALOG" => SECTION_CATALOG_ID]); // принадлежность к каталогу flytechnology
-    }
-  }
-  
-  $parent_change = []; // массив для замены родительских id новыми значениями:
-  // выборка всех папок каталога flytechnology, включая вложеные  
-  $list = CIBlockSection::GetList([], ["IBLOCK_ID"=>IBLOCK, "UF_CATALOG"=>SECTION_CATALOG_ID], false, ["UF_CATALOG"]);  
-  while($el = $list->GetNext()) {
-    $parent_change[$el['XML_ID']] = (int)$el['ID'] ? (int)$el['ID'] : SECTION;
-  }
-  // заменяем входящие id разделов реальными id в новосозданных записях:
-  foreach ($new_sections as &$value) {
-    $new_section_id = $parent_change[(int)$value['xmlparentcategory']];
-    $bs->Update($value['id'], ["IBLOCK_SECTION_ID"=>$new_section_id]);
-    $nav = $bs->GetNavChain(false, $new_section_id);
-    $path = '';
-    foreach ($nav->arResult as $val) $path .= $val['NAME'].'/';
-    while($nav->ExtractFields("nav_")) if ($nav_ID==$new_section_id) $value['path'] = $path.$value['section_name'];
-    $value['parent'] = $new_section_id;
+    if ($ID) $new_sections [] = ['id'=>$ID, 'xml_id'=>(int)$i->idcategory, 'old_parent'=>(int)$i->idparentcategory, 'section_name'=>(string)$i->namecategory];
   }
 
-  function sections_sort ($a, $b) {
-    if ($a == $b) return 0;
-    return ($a['parent'] < $b['parent']) ? -1 : 1;
-  };
-  usort ($new_sections, 'sections_sort');
-  foreach($new_sections as $val) echo $val['path'].'<br>';
-// -------------------------------- конец обработки списка разделов товаров ----------------------
-?> 
+  if (count($new_sections) > 0) { // обработка созданных категорий
+    $ft_list = get_folders();
+    $parent_change = []; // массив для замены родительских id новыми значениями:
+    foreach ($ft_list as $el) {
+      $parent_change[$el['XML_ID']] = (int)$el['ID'];
+    }
+
+    // заменяем входящие id родительских разделов реальными id:
+    foreach ($new_sections as &$value) {
+      $new_section_id = $parent_change[$value['old_parent']];
+      $bs->Update($value['id'], ["IBLOCK_SECTION_ID"=>$new_section_id]);
+      $nav = $bs->GetNavChain(false, $new_section_id);
+      $path = '';
+      foreach ($nav->arResult as $val) $path .= $val['NAME'].'/';
+      $path .= $value['section_name'];
+      $value['path'] = $path;
+    }
+
+    function sections_sort ($a, $b) {
+      if ($a == $b) return 0;
+      return ($a['parent'] < $b['parent']) ? -1 : 1;
+    };
+    usort ($new_sections, 'sections_sort');
+  }
+  // -------------------------------- конец обработки списка разделов товаров ----------------------
+  ?> 
 
 <ul id="ft-sectionsinfo">
   <li class="bold">Всего разделов в каталоге Flytechnology: <?=count($categories)?></li>
   <li class="bold">Импортировано разделов из каталога Flytechnology: <?=count($new_sections)?></li>
+  <li><button id="ft-sections-list-show" data-show="hidden">Показать список</button></li>
+</ul>
+<ul id="ft-sections-list" style="display:none">
+  <?
+    foreach($new_sections as $val):?>
+    <li>
+      <a href="/bitrix/admin/iblock_section_edit.php?IBLOCK_ID=<?=IBLOCK?>&type=aspro_next_catalog&lang=ru&ID=<?=$val['id']?>" target="blanc" title="Просмотр категории товаров">
+        <span><?=$val['path']?></span>
+        <img class="ft-product-view" src="view.png">
+      </a>
+    </li>
+    <?endforeach;?>
 </ul>
 
 <? // --------------------------- обработка списка товаров -------------------------
@@ -276,6 +306,13 @@ if ($activate_count > 0):?>
 </ul>
 
 <script>
+let sectionsShow = document.querySelector('#ft-sections-list-show');
+sectionsShow.addEventListener('click', (e)=>{
+  sectionsShow.dataset.show = sectionsShow.dataset.show == 'hidden' ? "visible" : "hidden";
+  sectionsShow.innerHTML = sectionsShow.dataset.show == 'hidden' ? "Показать список" : "Скрыть список";
+  document.querySelector('#ft-sections-list').style.display = sectionsShow.dataset.show == 'hidden' ? "none" : "block";
+})
+
 let itemsListVisible = false;
 let itemList = document.querySelectorAll('.item');
 
