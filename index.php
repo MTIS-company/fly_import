@@ -419,10 +419,11 @@ document.querySelector('#ft-import-products').addEventListener('click', ()=>{
 
   document.querySelector('#ft-import-products-list').innerHTML = '';
   document.querySelector("#ft-sectionsinfo").innerHTML = "";
-  let sectList = document.querySelector('#ft-sections-list-show');
-  if (sectList) {
+  let sectListBtn = document.querySelector('#ft-sections-list-show');
+  let sectList = document.querySelector('#ft-sections-list');
+  if (sectListBtn) {
+    sectListBtn.innerHTML = '';
     sectList.innerHTML = '';
-    document.querySelector('#ft-sections-list').innerHTML = '';
   }
   let mainSection = document.querySelector('#ft-products-import');
   mainSection.innerHTML = "<h2> Импортируются выбранные товары...</h2>";
@@ -452,8 +453,21 @@ document.querySelector('#ft-import-products').addEventListener('click', ()=>{
               mainSection.innerHTML = "<h2>Импорт товаров завершен.</h2>";
               BX.closeWait('ft-products-import');
               mainSection.innerHTML += `Импортировано ${index} товаров`;
-              document.querySelector("#ft-import-products-list").innerHTML = "";
-              console.log(data)
+              console.log(data);
+              mainSection.innerHTML += "<ul>";
+              data.forEach((i)=>{
+                if (i.success) {
+                  let href = `"/bitrix/admin/iblock_element_edit.php?IBLOCK_ID=<?=IBLOCK?>&type=aspro_next_catalog&lang=ru&ID=${i.success.id}"`;
+                  mainSection.innerHTML += 
+                  `<li>
+                    <a href=${href} target="blanc">
+                      ${i.success.name}
+                      <img class="ft-product-view" src="view.png" title="Просмотр товара"">
+                    </a>
+                  </li>`;
+                }
+              })
+              mainSection.innerHTML += "</ul>";
             }
             console.log('Imported: ', index, ' from ', selected.length);
             progress.innerHTML = `Импортировано ${index} из ${selected.length} товаров`;

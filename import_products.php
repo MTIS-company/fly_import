@@ -53,11 +53,11 @@ foreach($items_from_xml as $i) { // перебор массива импорти
     "DETAIL_TEXT"=>$i->descriptionproduct,
     "DETAIL_TEXT_TYPE"=>'html',
   ];
-
+$result [] = 'sdfsdfsdfsdf';
 	$ID = $b_el->Add($arFields);
-	$items_imported ++;
 	if ($ID) {
-		$result[] = "Импортирован: ".$i->nameproduct;
+    $items_imported ++;
+		$result[] = ["success"=>['name'=>(string)$i->nameproduct, 'id'=>$ID]];
 		$photo = $file->MakeFileArray($i->pictureproduct);
 		$pictures = [];
 		foreach($i->picturesproduct->picturesproduct as $val) $pictures[] = $file->MakeFileArray($val);
