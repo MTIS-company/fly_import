@@ -416,7 +416,14 @@ document.querySelector('#ft-import-products').addEventListener('click', ()=>{
   let itemSelected = document.querySelectorAll('.item:checked');
   let selected = [];
   itemSelected.forEach((i)=>selected.push(i.dataset.id));
+
+  document.querySelector('#ft-import-products-list').innerHTML = '';
   document.querySelector("#ft-sectionsinfo").innerHTML = "";
+  let sectList = document.querySelector('#ft-sections-list-show');
+  if (sectList) {
+    sectList.innerHTML = '';
+    document.querySelector('#ft-sections-list').innerHTML = '';
+  }
   let mainSection = document.querySelector('#ft-products-import');
   mainSection.innerHTML = "<h2> Импортируются выбранные товары...</h2>";
   BX.showWait('ft-products-import');
