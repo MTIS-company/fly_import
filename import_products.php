@@ -20,7 +20,6 @@ $xml = simplexml_load_file($_POST['xml_url'], 'SimpleXMLElement', LIBXML_NOCDATA
 $result = []; // ответ сервера (log)
 
 $cat_assoc = []; // масс. привязки id категории по ее name (нормализация таблицы)
-// $list = CIBlockSection::GetList([], ["IBLOCK_ID"=>IBLOCK, "CODE"=>SECTION_PREFIX."%"], true);  
 $list = CIBlockSection::GetList([], ["IBLOCK_ID"=>IBLOCK], true);  
 while($el = $list->GetNext()) {
   if (!$el['XML_ID']) continue;
@@ -53,7 +52,6 @@ foreach($items_from_xml as $i) { // перебор массива импорти
     "DETAIL_TEXT"=>$i->descriptionproduct,
     "DETAIL_TEXT_TYPE"=>'html',
   ];
-$result [] = 'sdfsdfsdfsdf';
 	$ID = $b_el->Add($arFields);
 	if ($ID) {
     $items_imported ++;

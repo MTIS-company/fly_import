@@ -42,3 +42,10 @@ li:before {
   position: relative;
   top: -2px;
 }
+#ft-preloader {
+  width: 60%;
+  position: fixed;
+  left: 0;
+  top: 40%;
+  margin: auto;
+}

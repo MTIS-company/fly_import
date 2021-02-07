@@ -17,7 +17,7 @@
   $file = new CFile;
   $price = new CPrice;
 ?>
-
+<div id="ft-preloader"></div>
 <?if (!array_key_exists('status', $_POST)): // первичная загрузка страницы?> 
   <form action="" name="ft-import-form" method="POST">
     <span>URL каталога:</span>
@@ -25,10 +25,9 @@
     <input type="hidden" name="status" value="xml_loaded">
     <button id="import-section" type="submit">Импортировать разделы</button>
   </form>
-  <div id="show-wait-sections"></div>
   <script>
     document.querySelector('#import-section').addEventListener('click', ()=>{
-      BX.showWait('show-wait-sections');
+      BX.showWait('ft-preloader');
       document.querySelector('#show-wait-sections').innerHTML = 'Импортируются разделы каталога...';
     });
   </script>
@@ -135,8 +134,8 @@ if (!$xml):?>
       foreach($new_sections as $val):?>
       <li>
         <a href="/bitrix/admin/iblock_section_edit.php?IBLOCK_ID=<?=IBLOCK?>&type=aspro_next_catalog&lang=ru&ID=<?=$val['id']?>" target="blanc" title="Просмотр категории товаров">
-          <span><?=$val['path']?></span>
           <img class="ft-product-view" src="view.png">
+          <span><?=$val['path']?></span>
         </a>
       </li>
       <?endforeach;?>
@@ -147,7 +146,6 @@ if (!$xml):?>
 
 $existing_items_request = $b_el->GetList( // создаем список товаров, уже существующих в базе
  [(int)"XML_ID"=>"ASC"],
-//  ["IBLOCK_ID"=>IBLOCK, "CODE"=>ITEM_PREFIX."%"],
  ["IBLOCK_ID"=>IBLOCK],
  false,
  false,
@@ -279,20 +277,22 @@ if ($activate_count > 0):?>
 
 
 <hr>
-<ul id="ft-products-import">
-  <li class="bold">Товары в каталоге flytechnology: <?=count($items)?></li>
-  <li class="bold">Товары в каталоге NAVI: <?=count($existing_items_list);?></li>
-  <li class="bold">Новые товары в каталоге flytechnology: <?=$new_products;?></li>
-  <li>
-    <button id="ft-import-read-more">Показать список</button>
-    <button id="ft-import-select">Выбрать все</button>
-    <button id="ft-import-unselect">Отменить все</button>
-    <button id="ft-import-products" disabled="">Импортировать выбранные</button>
-  </li>
-  <li>Выбрано: <span id="selection">0</span> товаров</li>
-</ul>
+<div id="ft-products-import">
+  <ul>
+    <li class="bold">Товары в каталоге flytechnology: <?=count($items)?></li>
+    <li class="bold">Товары в каталоге NAVI: <?=count($existing_items_list);?></li>
+    <li class="bold">Новые товары в каталоге flytechnology: <?=$new_products;?></li>
+    <li>
+      <button id="ft-import-read-more">Показать список</button>
+      <button id="ft-import-select">Выбрать все</button>
+      <button id="ft-import-unselect">Отменить все</button>
+      <button id="ft-import-products" disabled="">Импортировать выбранные</button>
+    </li>
+    <li>Выбрано: <span id="selection">0</span> товаров</li>
+  </ul>
+</div>
 <ul id="ft-import-products-list">
-  <span class="bold">Товары в каталоге flytechnology (<?=count($items)?>):</span>
+  <li class="bold">Товары в каталоге flytechnology (<?=count($items)?>):</li>
   <?foreach ($items as $key=>$val):?>
     <li>
       <?$disabled = $val['exists'] ? ' disabled=""':'';?>
@@ -344,7 +344,7 @@ const activateProcess = (arraySelector, messageSelector, title, finishTitle, val
     itemSelected.forEach((i)=>selected.push(i.dataset.id));
     let activateSection = document.querySelector(messageSelector);
     activateSection.innerHTML = `<h2>${title}</h2>`;
-    BX.showWait(activateSection);
+    BX.showWait('ft-preloader');
     activateSection.innerHTML += `<h3 id="activate-progress"> </h3>`;
     let progress = document.querySelector('#activate-progress');
     let index = 0;
@@ -368,10 +368,9 @@ const activateProcess = (arraySelector, messageSelector, title, finishTitle, val
                     if (index >= selected.length) {
                       index = selected.length;
                       clearInterval(interval);
-                      BX.closeWait(activateSection);
+                      BX.closeWait('ft-preloader');
                       activateSection.innerHTML = `<h2>${finishTitle}</h2>`;
                       activateSection.innerHTML += `Обработано: ${index} товаров`;
-                      console.log("Response: ", data);
                     } else
                     {
                       console.log('Processed: ', index, ' of ', selected.length);
@@ -412,24 +411,19 @@ document.querySelector('#ft-import-unselect').addEventListener('click', ()=>{
   itemsCheckedCalc();
 })
 
+// импорт товаров:
 document.querySelector('#ft-import-products').addEventListener('click', ()=>{
   let itemSelected = document.querySelectorAll('.item:checked');
   let selected = [];
   itemSelected.forEach((i)=>selected.push(i.dataset.id));
 
   document.querySelector('#ft-import-products-list').innerHTML = '';
-  document.querySelector("#ft-sectionsinfo").innerHTML = "";
-  let sectListBtn = document.querySelector('#ft-sections-list-show');
-  let sectList = document.querySelector('#ft-sections-list');
-  if (sectListBtn) {
-    sectListBtn.innerHTML = '';
-    sectList.innerHTML = '';
-  }
   let mainSection = document.querySelector('#ft-products-import');
-  mainSection.innerHTML = "<h2> Импортируются выбранные товары...</h2>";
-  BX.showWait('ft-products-import');
-  mainSection.innerHTML += `<h3 id="progress"> </h3>`;
-  let progress = document.getElementById('progress');
+  mainSection.innerHTML = "<h2 id='ft-import-status'> Импортируются выбранные товары...</h2>";
+  mainSection.innerHTML += "<h3 id='ft-import-progress'> </h3>";
+  BX.showWait('ft-preloader');
+  mainSection.innerHTML += "<ul id='ft-import-status-list'></ul>";
+  let statusList = mainSection.querySelector('#ft-import-status-list');
 
   let index = 0;
   let success = true;
@@ -445,35 +439,34 @@ document.querySelector('#ft-import-products').addEventListener('click', ()=>{
           method: 'POST',
           dataType: 'json',
           onsuccess: function(data){
+            let importProgress = document.querySelector('#ft-import-progress');
             index += 5;
             success = true;
             if (index >= selected.length) {
               index = selected.length;
               clearInterval(interval);
-              mainSection.innerHTML = "<h2>Импорт товаров завершен.</h2>";
-              BX.closeWait('ft-products-import');
-              mainSection.innerHTML += `Импортировано ${index} товаров`;
-              console.log(data);
-              mainSection.innerHTML += "<ul>";
-              data.forEach((i)=>{
-                if (i.success) {
-                  let href = `"/bitrix/admin/iblock_element_edit.php?IBLOCK_ID=<?=IBLOCK?>&type=aspro_next_catalog&lang=ru&ID=${i.success.id}"`;
-                  mainSection.innerHTML += 
-                  `<li>
-                    <a href=${href} target="blanc">
-                      ${i.success.name}
-                      <img class="ft-product-view" src="view.png" title="Просмотр товара"">
-                    </a>
-                  </li>`;
-                }
-              })
-              mainSection.innerHTML += "</ul>";
+              mainSection.querySelector('#ft-import-status').innerHTML = "Импорт товаров завершен.";
+              BX.closeWait('ft-preloader');
+              importProgress.innerHTML = `<progress value="${index}" max="${selected.length}"><br>`;
             }
             console.log('Imported: ', index, ' from ', selected.length);
-            progress.innerHTML = `Импортировано ${index} из ${selected.length} товаров`;
+            data.forEach((i)=>{
+              if (i.success) {
+                let href = `"/bitrix/admin/iblock_element_edit.php?IBLOCK_ID=<?=IBLOCK?>&type=aspro_next_catalog&lang=ru&ID=${i.success.id}"`;
+                statusList.innerHTML += 
+                `<li>
+                  <a href=${href} target="blanc">
+                    <img class="ft-product-view" src="view.png" title="Просмотр товара"">
+                    ${i.success.name}
+                  </a>
+                </li>`;
+              }
+            })
+            importProgress.innerHTML = `<progress value="${index}" max="${selected.length}">`;
+            importProgress.innerHTML += `<h3></h3>Импортировано ${index} из ${selected.length} товаров</h3>`;
           }
       });
-      } // if success
+    } // if success
   }, 500); // setInterval
 }); // ('#ft-import-products').addEventListener
 
